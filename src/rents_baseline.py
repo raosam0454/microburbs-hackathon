@@ -103,6 +103,12 @@ def fit_predict(L, T, target_date):
     T["rent_with_car_space"] = ((base + prem) / 5).round() * 5
     T["source"] = np.select([o.notna(), bm.notna()], ["own_flat", "building"], "area")
     T["prem"] = prem
+    T["base_est"] = base
+    T["bld_n"] = bn
+    T["own_est"] = o
+    T["bld_est"] = bm
+    last = L.groupby("gnaf_id")["listing_date"].max()
+    T["months_since_own"] = (target_date - T["gnaf_id"].map(last)).dt.days / 30.4
     return T, {"index_target": it, "monthly_slope": slope, "idx": idx}
 
 
