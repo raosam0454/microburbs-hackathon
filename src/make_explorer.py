@@ -87,7 +87,7 @@ Each flat shows its estimated weekly rent with and without a car space, a likely
 const D=__DATA__, M=__META__, N=D.id.length;
 document.getElementById('kpi').textContent=`${N.toLocaleString()} flats | held-out check: typical miss $${M.mae}/wk, ${M.w100}% within $100, R² ${M.r2} | 80% ranges held ${M.cov}% raw, then calibrated`;
 const map=L.map('map',{preferCanvas:true}).setView([-33.885,151.205],14);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',attribution:'© OpenStreetMap contributors © CARTO | Addresses: Open G-NAF, Geoscape Australia'}).addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors | Addresses: Open G-NAF, Geoscape Australia'}).addTo(map);
 // buildings
 const B=new Map();for(let i=0;i<N;i++){const k=D.b[i]+'|'+D.s[i];if(!B.has(k))B.set(k,[]);B.get(k).push(i)}
 const med=a=>{const s=[...a].sort((x,y)=>x-y);return s[Math.floor(s.length/2)]};
