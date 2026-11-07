@@ -51,6 +51,7 @@ def main():
     p2 = ps.xs(2, level="beds")
     cnt = L.dropna(subset=["car"]).query("beds == 2").groupby(["suburb", "car"]).size().unstack().min(axis=1)
     p2 = p2[cnt.reindex(p2.index).fillna(0) >= 30].sort_values()
+    p2.index = p2.index.str.replace(r" \(.*\)", "", regex=True)
     fig, ax = plt.subplots(figsize=(7, 5))
     ax.barh(p2.index, p2.values, color=BLUE)
     ax.set_xlabel("Extra weekly rent for a car space, 2-bedroom flats ($)")
@@ -71,7 +72,7 @@ def main():
 
     # 4. validation error bands and sources
     bands = pd.cut(val.abs_err, [-1, 50, 100, 200, 1e9],
-                   labels=["within $50", "$50 to $100", "$100 to $200", "over $200"]).value_counts().sort_index()
+                   labels=["within \\$50", "\\$50 to \\$100", "\\$100 to \\$200", "over \\$200"]).value_counts().sort_index()
     fig, ax = plt.subplots(figsize=(7, 2.4))
     ax.bar(bands.index.astype(str), bands.values, color=[BLUE, BLUE, GREY, RED])
     for i, v in enumerate(bands.values):
@@ -122,6 +123,9 @@ a space bought for $100,000 would return about {top.iloc[0] * 52 / 1000:.0f}% gr
 <div class="card"><b>{m['within_100'] * 100:.1f}%</b>Within $100 ({int(round(m['within_100'] * m['n'])):,} of {m['n']:,})</div>
 <div class="card"><b>{m['r2']:.3f}</b>R squared</div>
 </div>
+<p><b>Honest ranges.</b> Each flat also gets an 80% likely range (median width ${met['range_width']:.0f} a week).
+On the held-out adverts, {met['range_coverage'] * 100:.1f}% landed inside it, a little under the 80% target, so the final ranges are widened by
+{met['range_k']:.2f}x to match. A lender or investor can see how sure we are, not just a single number.</p>
 <p>For reference, the task page lists a typical miss of $86 for the Microburbs rental valuation and $100 for a simple estimate.</p>
 <img src="{chart_err}" alt="Error bands">
 
@@ -153,6 +157,16 @@ one matching each advert.</p>
 <table style="margin-top:12px"><tr><th>Method</th><th>Typical miss</th><th>Within $100</th><th>R squared</th></tr>
 <tr><td>Local medians with rent index</td><td>${b['median_abs_err']:.0f}</td><td>{b['within_100'] * 100:.1f}%</td><td>{b['r2']:.3f}</td></tr>
 <tr><td>+ LightGBM correction (submitted)</td><td>${m['median_abs_err']:.0f}</td><td>{m['within_100'] * 100:.1f}%</td><td>{m['r2']:.3f}</td></tr></table>
+
+<h2>Who would pay for this?</h2>
+<table><tr><th>Customer</th><th>What they get</th><th>How it earns</th></tr>
+<tr><td>Real estate agents</td><td>A one-second rental appraisal for any flat, with evidence</td><td>Appraisals win property management mandates, an agency's most valuable recurring revenue. Per-seat widget.</td></tr>
+<tr><td>Investors and landlords</td><td>Fair rent, likely range, parking ROI, re-pricing alerts when the index moves</td><td>Paid reports and subscriptions</td></tr>
+<tr><td>Lenders and brokers</td><td>Rental income with a confidence range for serviceability checks</td><td>API volume pricing</td></tr>
+<tr><td>Developers and build-to-rent</td><td>What a car space is worth by suburb and building</td><td>Data licensing</td></tr>
+<tr><td>Tenants</td><td>A free fair-rent check</td><td>Traffic and leads for the paid products</td></tr></table>
+<p>The same model runs as an interactive <b>Rent Explorer</b> (<code>explorer.html</code> in the repo): search any address or click a building to
+see both rents, the likely range, the evidence used and the yield on a car space.</p>
 
 <h2>What remains uncertain?</h2>
 <p>Our check ran about ${m['median_bias']:.0f} high in June to July, so the forward projection may be slightly optimistic if the market cooled. Flats

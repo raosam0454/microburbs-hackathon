@@ -63,8 +63,9 @@ def windows(first, last):
     return out
 
 
-def train(rows):
-    params = dict(objective="l1", learning_rate=0.04, num_leaves=31, min_data_in_leaf=60,
+def train(rows, alpha=None):
+    obj = dict(objective="quantile", alpha=alpha) if alpha else dict(objective="l1")
+    params = dict(**obj, learning_rate=0.04, num_leaves=31, min_data_in_leaf=60,
                   feature_fraction=0.8, bagging_fraction=0.8, bagging_freq=1, verbose=-1, seed=7)
     return lgb.train(params, lgb.Dataset(rows[FEATS], rows["resid"]), num_boost_round=400)
 
@@ -82,6 +83,19 @@ def main():
     test["rent_with_car_space"] += m.predict(test[FEATS])
     test["rent_without_car_space"] += m.predict(test[FEATS])
     model_s, err = score(test)
+    est_v = np.where(test["car"] == 1, test["rent_with_car_space"], test["rent_without_car_space"])
+    q_lo, q_hi = train(rows, 0.1), train(rows, 0.9)
+    lo_v = est_v + q_lo.predict(test[FEATS]) - m.predict(test[FEATS])
+    hi_v = est_v + q_hi.predict(test[FEATS]) - m.predict(test[FEATS])
+    coverage = float(np.mean((test["weekly_rent"] >= lo_v) & (test["weekly_rent"] <= hi_v)))
+    width = float(np.median(hi_v - lo_v))
+    # calibrate width so 80% of held-out adverts fall inside (split-conformal scale)
+    y = test["weekly_rent"].values
+    ks = np.linspace(0.8, 2.0, 121)
+    cov = [np.mean((y >= est_v + k * (lo_v - est_v)) & (y <= est_v + k * (hi_v - est_v))) for k in ks]
+    k80 = float(ks[np.argmax(np.array(cov) >= 0.80)])
+    print(f"RANGE  calibration factor {k80:.2f}")
+    print(f"RANGE  P10-P90 coverage {coverage:.1%} (target 80%) | median width ${width:.0f}")
     print("BASELINE", {k: round(v, 3) for k, v in base_s.items()})
     print("MODEL   ", {k: round(v, 3) for k, v in model_s.items()})
 
@@ -94,6 +108,11 @@ def main():
     P = attach(P, F, B)
     P["car"] = P["car_space"]
     adj = m.predict(P[FEATS])
+    q_lo, q_hi = train(rows, 0.1), train(rows, 0.9)
+    P["lo_off"] = q_lo.predict(P[FEATS]) - adj
+    P["hi_off"] = q_hi.predict(P[FEATS]) - adj
+    P["lo_off"] = (k80 * P["lo_off"]).clip(upper=0)
+    P["hi_off"] = (k80 * P["hi_off"]).clip(lower=0)
     use_model = model_s["median_abs_err"] < base_s["median_abs_err"]
     if use_model:
         P["rent_without_car_space"] = P["rent_without_car_space"] + adj
@@ -111,7 +130,7 @@ def main():
     rep = ROOT / "outputs"
     rep.mkdir(exist_ok=True)
     imp = pd.Series(m.feature_importance("gain"), index=FEATS).sort_values(ascending=False)
-    json.dump({"baseline": base_s, "model": model_s, "train_rows": int(len(rows)),
+    json.dump({"baseline": base_s, "model": model_s, "range_coverage": coverage, "range_k": k80, "range_width": width, "train_rows": int(len(rows)),
                "monthly_drift_pct": info["monthly_slope"] * 100,
                "importance": (imp / imp.sum()).round(4).to_dict()},
               open(rep / "metrics.json", "w"), indent=2)
