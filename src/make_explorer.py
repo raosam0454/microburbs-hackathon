@@ -42,6 +42,8 @@ def main():
     m = met["model"]
     meta = {"suburbs": sub_names, "mae": round(m["median_abs_err"]), "w100": round(m["within_100"] * 100, 1),
             "r2": round(m["r2"], 3), "cov": round(met["range_coverage"] * 100, 1), "nval": m["n"]}
+    yf = OUT / "suburb_yield.json"
+    meta["yld"] = json.load(open(yf)) if yf.exists() else {}
     vend = ROOT / "src" / "vendor"
     html = TEMPLATE.replace("__LCSS__", (vend / "leaflet.css").read_text()).replace(
         "__LJS__", (vend / "leaflet.js").read_text())
@@ -85,7 +87,7 @@ Each flat shows its estimated weekly rent with and without a car space, a likely
 const D=__DATA__, M=__META__, N=D.id.length;
 document.getElementById('kpi').textContent=`${N.toLocaleString()} flats | held-out check: typical miss $${M.mae}/wk, ${M.w100}% within $100, R² ${M.r2} | 80% ranges held ${M.cov}% raw, then calibrated`;
 const map=L.map('map',{preferCanvas:true}).setView([-33.885,151.205],14);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors | Addresses: Open G-NAF, Geoscape Australia'}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',attribution:'© OpenStreetMap contributors © CARTO | Addresses: Open G-NAF, Geoscape Australia'}).addTo(map);
 // buildings
 const B=new Map();for(let i=0;i<N;i++){const k=D.b[i]+'|'+D.s[i];if(!B.has(k))B.set(k,[]);B.get(k).push(i)}
 const med=a=>{const s=[...a].sort((x,y)=>x-y);return s[Math.floor(s.length/2)]};
@@ -96,6 +98,7 @@ const col=v=>cols[cut.filter(c=>v>c).length];
 let hl=null;
 [...B.entries()].forEach(([k,ix],j)=>{const i=ix[0];L.circleMarker([D.y[i],D.x[i]],{radius:Math.min(12,3+Math.sqrt(ix.length)/2),color:'#333',weight:.5,fillColor:col(vals[j]),fillOpacity:.85})
  .addTo(map).bindTooltip(`${D.b[i]||D.a[i]}: ${ix.length} flats`).on('click',()=>showBuilding(ix))});
+map.fitBounds(L.latLngBounds(D.y.map((y,i)=>[y,D.x[i]])),{padding:[20,20]});
 const lg=L.control({position:'bottomleft'});lg.onAdd=()=>{const d=L.DomUtil.create('div','legend');d.innerHTML='<b style="background:none"></b>Median rent per bedroom, without parking<br>'+cols.map((c,i)=>`<b style="background:${c}"></b>${i==0?'under $'+Math.round(cut[0]):i==4?'over $'+Math.round(cut[3]):'$'+Math.round(cut[i-1])+' to $'+Math.round(cut[i])}`).join('<br>');return d};lg.addTo(map);
 const money=v=>'$'+Math.round(v).toLocaleString();
 const ev=i=>D.e[i]==2?'This flat\'s own past adverts, re-priced to Aug 2026':D.e[i]==1?`${D.n[i]} past adverts in this building`:'Nearby mesh block and suburb adverts (no history in this building)';
@@ -113,7 +116,7 @@ function showFlat(i){
  <div class="card"><b>Is a car space worth it here?</b><p>Parking adds <b>${money(prem)}</b> a week, or <b>${money(prem*52)}</b> a year.</p>
  Car space price: $<input class="n" id="cp" type="number" value="100000" step="5000"> <span id="roi"></span>
  <p class="muted">Gross yield on the space before strata and costs.${prem<15?' Most flats nearby already come with a space, so parking adds little here.':''}</p></div>
- <div class="card"><b>Annual rent</b><p>${money(D.o[i]*52)} without parking, ${money(D.w[i]*52)} with.</p></div>`;
+ <div class="card"><b>Annual rent</b><p>${money(D.o[i]*52)} without parking, ${money(D.w[i]*52)} with.</p>${(()=>{const sn=M.suburbs[D.s[i]].replace(/ \(.*\)/,''),y=M.yld[sn];return y?`<p>Typical gross yield for flats in ${sn}: <b>${y.toFixed(1)}%</b> a year (our rents vs median unit price).</p>`:''})()}</div>`;
  const r=()=>{const p=+document.getElementById('cp').value||1;document.getElementById('roi').innerHTML=`= <b>${(prem*52/p*100).toFixed(1)}%</b> gross yield`};
  document.getElementById('cp').oninput=r;r();
 }

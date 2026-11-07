@@ -84,6 +84,41 @@ def main():
                        for k, r in src.sort_values("size", ascending=False).iterrows())
     imp = met["importance"]
 
+    # 5. investor yield by suburb (needs cache/suburb_prices.json from fetch_yield.py)
+    yield_html = ""
+    yp = ROOT / "cache" / "suburb_prices.json"
+    if yp.exists():
+        Y = pd.DataFrame(json.load(open(yp))).T
+        Pf = pd.read_pickle(OUT / "final_predictions.pkl")
+        rent = np.where(Pf["car_space"] == 1, Pf["rent_with_car_space"], Pf["rent_without_car_space"])
+        r = pd.Series(rent, index=Pf.index).groupby(Pf["suburb"]).median()
+        Y["our_rent"] = r.reindex(Y.index)
+        Y = Y.dropna(subset=["unit_price", "our_rent"])
+        Y["our_yield"] = Y["our_rent"] * 52 / Y["unit_price"].astype(float) * 100
+        Y["mb"] = Y["mb_unit_yield"].astype(float) * 100
+        Y = Y.sort_values("our_yield")
+        Y.index = Y.index.str.replace(r" \(.*\)", "", regex=True)
+        fig, ax = plt.subplots(figsize=(7, 5.5))
+        yy = np.arange(len(Y))
+        ax.barh(yy, Y["our_yield"], color=BLUE, label="Our August 2026 rent estimates")
+        ax.scatter(Y["mb"], yy, color=RED, zorder=3, s=18, label="Microburbs published unit yield")
+        ax.set_yticks(yy, Y.index)
+        ax.set_xlabel("Gross rental yield (%) = median weekly rent x 52 / median unit price")
+        ax.legend(loc="lower right", fontsize=8)
+        ax.set_title("Where do flat investors earn the most?", loc="left")
+        chart_y = png(fig)
+        best, worst = Y.iloc[-1], Y.iloc[0]
+        gap = (Y["our_yield"] - Y["mb"]).dropna().sort_values()
+        yield_html = f"""<h2>Where do flat investors earn the most?</h2>
+<p>Rent alone is not an investment case; rent divided by price is. Combining our rent estimates with Microburbs median unit prices
+(history series at or before 31 July 2026), gross yields run from <b>{worst['our_yield']:.1f}% in {worst.name}</b> to
+<b>{best['our_yield']:.1f}% in {best.name}</b>. Where our current-rent yield sits above the published figure
+(largest gap: {gap.index[-1]}, +{gap.iloc[-1]:.1f} points), rents have moved ahead of what slower data shows.</p>
+<img src="{chart_y}" alt="Yield by suburb">
+<p class="small">Prices and published yields: Microburbs API, fetched on the day. Used for this insight only, not in the rent estimates.
+Our yield uses the median estimate per suburb with each flat's own parking status.</p>"""
+        json.dump({k: round(v, 2) for k, v in Y["our_yield"].items()}, open(OUT / "suburb_yield.json", "w"))
+
     b, m = met["baseline"], met["model"]
     n_train_adverts = int((L.listing_date <= "2026-05-31").sum())
     html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
@@ -115,6 +150,8 @@ a space bought for $100,000 would return about {top.iloc[0] * 52 / 1000:.0f}% gr
 <img src="{chart_park}" alt="Parking premium by suburb">
 <p class="small">Suburbs with at least 30 adverts both with and without parking. Premiums compare drift-adjusted asking rents and are shrunk toward the city figure where data is thin.</p>
 <p><b>Height matters less than people think.</b> Within the same building and bedroom count, flats on floors 41+ ask only {floor_gap:.1f}% more than floors 1 to 2. The building and the street set the rent far more than the floor does.</p>
+
+{yield_html}
 
 <h2>What our separate check showed</h2>
 <p>R squared is the share of the differences in weekly rent that our estimates explain (1.0 would be perfect).</p>

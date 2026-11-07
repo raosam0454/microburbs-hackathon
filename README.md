@@ -34,12 +34,14 @@ Old adverts are the best evidence for a flat's rent, but they are stale: carryin
 - **Like-for-like drift index:** removes the low bias that comes from leaning on stale adverts.
 - **Honest ranges:** every flat gets an 80% likely range, checked against later adverts and calibrated.
 - **Parking priced as an investment:** weekly premium, annual income and gross yield on a car space.
+- **Investor yield:** our current rents divided by Microburbs median unit prices give gross yield by suburb, shown in the report and the Explorer.
 - **Explainable evidence:** each estimate says whether it came from the flat's own history, its building, or the area.
 
 Insights found on the way:
 - Like-for-like asking rents rose about 12% since July 2023.
 - A car space is a scarcity premium: worth a lot for 2-bedroom flats in older harbourside suburbs, close to nothing in newer, dense precincts.
 - Within the same building, the top floors ask only about 2% more than the lowest floors.
+- Gross yields for flats run from about 2.6% (Barangaroo) to 6.4% (Haymarket). The high-yield suburbs are the same dense precincts where a car space adds almost nothing.
 
 ## How to run
 
@@ -52,6 +54,7 @@ python3 src/make_report.py      # writes report.html
 python3 src/make_explorer.py    # writes explorer.html (Leaflet bundled in src/vendor)
 ```
 
+`src/fetch_yield.py` pulls suburb median unit prices (history cut at 31 July 2026) and published yields from the Microburbs API into `cache/` (gitignored). These feed the yield insight only, never the rent estimates.
 `src/fetch_api.py` pulls suburb-level data from the Microburbs API (key in `.env` as `MICROBURBS_API_KEY`, never committed).
 
 ## Repo layout
@@ -69,10 +72,10 @@ src/fetch_api.py      Microburbs API helper
 
 ## Source credits
 
-- Microburbs hackathon data and API, © Microburbs. Estimates are automated and indicative only.
+- Microburbs hackathon data and API (rental adverts, suburb unit prices and yields), © Microburbs. Estimates are automated and indicative only.
 - Addresses: [Open G-NAF](https://data.gov.au/data/dataset/19432f89-dc3a-4ef3-b943-5326ef1dbecc), © Geoscape Australia, licensed by the Commonwealth of Australia under the Open G-NAF End User Licence Agreement.
 - Block counts: [ABS Census 2021](https://www.abs.gov.au/website-privacy-copyright-and-disclaimer), © Commonwealth of Australia, CC BY 4.0. 2026 block figures are Microburbs estimates, not Census results.
-- Map tiles: © OpenStreetMap contributors. Map library: Leaflet (BSD-2-Clause, licence in src/vendor).
+- Map tiles: © OpenStreetMap contributors, © CARTO. Map library: Leaflet (BSD-2-Clause, licence in src/vendor).
 - Libraries: pandas, NumPy, LightGBM, Matplotlib.
 
 Not financial advice.
