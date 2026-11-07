@@ -72,20 +72,33 @@ header h1{font-size:18px;margin:0}header .kpi{font-size:12px;opacity:.9}
 table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:5px;border-bottom:1px solid #e3e8ee;text-align:left}
 tr.f{cursor:pointer}tr.f:hover{background:#eef3f8}.bar{height:8px;background:#dde3ea;border-radius:4px;position:relative;margin:8px 0}
 .bar span{position:absolute;height:8px;background:#7fa6cc;border-radius:4px}.bar i{position:absolute;top:-4px;width:3px;height:16px;background:#1f4e79}
-input.n{width:110px;padding:4px}.legend{background:#fff;padding:6px 8px;border-radius:6px;font-size:12px;line-height:18px}
+input.n{width:110px;padding:4px}
+details.tips{margin-top:12px;background:#fff8e1;border:1px solid #f3e0a1;border-radius:10px;padding:8px 12px}
+details.tips summary{cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;gap:6px}
+details.tips summary::-webkit-details-marker{display:none}
+details.tips summary::after{content:"Show";margin-left:auto;font-weight:400;font-size:12px;color:#8a6d1d}
+details.tips[open] summary::after{content:"Hide"}
+details.tips ul{padding-left:18px;margin:8px 0;font-size:14px;line-height:1.5}
+.bulb{font-size:18px}
+header .kpi b{color:#ffd166}.legend{background:#fff;padding:6px 8px;border-radius:6px;font-size:12px;line-height:18px}
 .legend b{display:inline-block;width:12px;height:12px;border-radius:6px;margin-right:6px;vertical-align:middle}
 </style></head><body>
-<header><h1>Rent Explorer: City of Sydney flats</h1>
-<span class="kpi" id="kpi"></span></header>
+<header><div><h1>Sydney Flat Rents</h1><div class="kpi">What could this flat rent for? Search any of 65,777 flats in the City of Sydney.</div></div>
+<div class="kpi" id="kpi" style="margin-left:auto;text-align:right"></div></header>
 <div id="wrap"><div id="map"></div><div id="side">
 <input id="q" placeholder="Search an address, e.g. 8 Sam Sing Street" autocomplete="off">
-<div id="hits"></div><div id="panel"><div class="card"><b>How to use</b><p class="muted">Search an address, or click a building on the map.
-Each flat shows its estimated weekly rent with and without a car space, a likely range, the evidence behind it, and what a car space is worth as an investment.</p>
-<p class="muted">Estimates use only information available by 31 July 2026, re-priced to August 2026 with a like-for-like rent index.</p></div>
+<div id="hits"></div>
+<details class="tips"><summary><span class="bulb">💡</span> How to use</summary>
+<ul><li><b>Search</b> a street or building, then pick a flat.</li>
+<li><b>Click a dot</b> on the map to see every flat in that building.</li>
+<li>Each flat shows its weekly rent <b>with and without parking</b>, a likely range, and why we think so.</li>
+<li>Type a car space price to see what <b>parking earns</b> as an investment.</li></ul>
+<p class="muted">Dot colour shows typical rent per bedroom. Estimates use adverts up to 31 July 2026, brought up to August 2026 prices.</p></details>
+<div id="panel">
 <div id="sub"></div></div></div></div>
 <script>
 const D=__DATA__, M=__META__, N=D.id.length;
-document.getElementById('kpi').textContent=`${N.toLocaleString()} flats | held-out check: typical miss $${M.mae}/wk, ${M.w100}% within $100, R² ${M.r2} | 80% ranges held ${M.cov}% raw, then calibrated`;
+document.getElementById('kpi').innerHTML=`Tested on real adverts: usually within <b>$${M.mae}</b> a week<br>${Math.round(M.w100)}% of estimates within $100`;
 const map=L.map('map',{preferCanvas:true}).setView([-33.885,151.205],14);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors | Addresses: Open G-NAF, Geoscape Australia'}).addTo(map);
 // buildings
@@ -99,7 +112,7 @@ let hl=null;
 [...B.entries()].forEach(([k,ix],j)=>{const i=ix[0];L.circleMarker([D.y[i],D.x[i]],{radius:Math.min(12,3+Math.sqrt(ix.length)/2),color:'#333',weight:.5,fillColor:col(vals[j]),fillOpacity:.85})
  .addTo(map).bindTooltip(`${D.b[i]||D.a[i]}: ${ix.length} flats`).on('click',()=>showBuilding(ix))});
 map.fitBounds(L.latLngBounds(D.y.map((y,i)=>[y,D.x[i]])),{padding:[20,20]});
-const lg=L.control({position:'bottomleft'});lg.onAdd=()=>{const d=L.DomUtil.create('div','legend');d.innerHTML='<b style="background:none"></b>Median rent per bedroom, without parking<br>'+cols.map((c,i)=>`<b style="background:${c}"></b>${i==0?'under $'+Math.round(cut[0]):i==4?'over $'+Math.round(cut[3]):'$'+Math.round(cut[i-1])+' to $'+Math.round(cut[i])}`).join('<br>');return d};lg.addTo(map);
+const lg=L.control({position:'bottomleft'});lg.onAdd=()=>{const d=L.DomUtil.create('div','legend');d.innerHTML='<b style="background:none"></b>Typical weekly rent per bedroom<br>'+cols.map((c,i)=>`<b style="background:${c}"></b>${i==0?'under $'+Math.round(cut[0]):i==4?'over $'+Math.round(cut[3]):'$'+Math.round(cut[i-1])+' to $'+Math.round(cut[i])}`).join('<br>');return d};lg.addTo(map);
 const money=v=>'$'+Math.round(v).toLocaleString();
 const ev=i=>D.e[i]==2?'This flat\'s own past adverts, re-priced to Aug 2026':D.e[i]==1?`${D.n[i]} past adverts in this building`:'Nearby mesh block and suburb adverts (no history in this building)';
 function showFlat(i){
