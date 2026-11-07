@@ -1,0 +1,9 @@
+.env
+data/
+cache/
+outputs/
+__pycache__/
+.ipynb_checkpoints/
+.venv/
+.DS_Store
+_to_delete/
